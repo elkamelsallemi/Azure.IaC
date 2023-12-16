@@ -1,13 +1,16 @@
 # Azure CLI References
 
 ## Sign in to Azure
->Sign in to Azure
+```bash
+Sign in to Azure
 
 ## Set the default subscription
-> az account set --subscription {your subscription ID}
+```bash
+az account set --subscription {your subscription ID}
 
 ## Set the default resource group
->az configure --defaults group=[sandbox resource group name]
+```bash
+az configure --defaults group=[sandbox resource group name]
 
 ## Deploy template
 >az deployment group create --template-file main.bicep
