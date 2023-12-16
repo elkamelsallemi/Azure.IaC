@@ -15,9 +15,33 @@ az configure --defaults group=[sandbox resource group name]
 ```bash
 az deployment group create --template-file main.bicep
 ```
-# Use parameter files at deployment time
+## Use parameter files at deployment time
 ```bash
 az deployment group create --template-file main.bicep --parameters main.parameters.json
+```
+
+## Create a key vault and secrets
+To create the **keyVaultName**, **login**, and **password** variables, run each command separately. <br>
+Then you can run the block of commands to create the key vault and secrets.
+
+```bash
+keyVaultName='YOUR-KEY-VAULT-NAME'
+read -s -p "Enter the login name: " login
+read -s -p "Enter the password: " password
+
+az keyvault create --name $keyVaultName --location westus3 --enabled-for-template-deployment true
+az keyvault secret set --vault-name $keyVaultName --name "sqlServerAdministratorLogin" --value $login --output none
+az keyvault secret set --vault-name $keyVaultName --name "sqlServerAdministratorPassword" --value $password --output none
+```
+You're setting the **--enabled-for-template-deployment** setting on the vault so that Azure can use the secrets from your vault during deployments. If you don't set this setting then, by default, your deployments can't access secrets in your vault.
+
+## Get the key vault's resource ID
+```bash
+az keyvault show --name $keyVaultName --query id --output tsv
+```
+## Deploy the Bicep template with parameter file
+```bash
+az deployment group create --template-file main.bicep --parameters main.parameters.dev.json
 ```
 # Bicep Refrences
 ## Declare a parameter : 
@@ -50,9 +74,9 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: appServicePlanName
   location: location
   sku: {
-    name: **appServicePlanSku.name**
-    tier: **appServicePlanSku.tier**
-    capacity: **appServicePlanSku.capacity**
+    name: appServicePlanSku.name
+    tier: appServicePlanSku.tier
+    capacity: appServicePlanSku.capacity
   }
 }
 ```
@@ -128,15 +152,60 @@ param storageAccountName string
 @description('The locations into which this Cosmos DB account should be configured. This parameter needs to be a list of objects,each of which has a locationName property.') 
 param cosmosDBAccountLocations array
 ```
+
+
+##Define secure parameters
+The **@secure** decorator can be applied to string and object parameters that might contain secret values. When you define a parameter as **@secure**, Azure won't make the parameter values available in the deployment logs. Also, if you create the deployment interactively by using the Azure CLI or Azure PowerShell and you need to enter the values during the deployment, the terminal won't display the text on your screen.
+
+As part of the HR application migration, you need to deploy an Azure SQL logical server and database. You'll provision the logical server with an administrator login and password. Because they're sensitive, you need these values to be secured. Here's an example declaration to create two string parameters for the SQL server's administrator details:
+
+```bicep
+@secure()
+param sqlServerAdministratorLogin string
+
+@secure()
+param sqlServerAdministratorPassword string
+```
+## Integrate with Azure Key Vault
+
 ```bicep
 resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   name: keyVaultName
 }
 ```
+## Use Key Vault with modules
+Modules enable you to create reusable Bicep files that encapsulate a set of resources. It's common to use modules to deploy parts of your solution. Modules may have parameters that accept secret values, and you can use Bicep's Key Vault integration to provide these values securely. 
 
+>Here's an example Bicep file that deploys a module and provides the value of the ApiKey secret parameter by taking it directly from Key Vault:
+
+```bicep
 module applicationModule 'application.bicep' = {
   name: 'application-module'
   params: {
     apiKey: keyVault.getSecret('ApiKey')
   }
 }
+```
+
+Notice that in this Bicep file, the Key Vault resource is referenced by using the existing keyword. The keyword tells Bicep that the Key Vault already exists, and this code is a reference to that vault. Bicep won't redeploy it. Also, notice that the module's code uses the **getSecret()** function in the value for the module's apiKey parameter. This is a special Bicep function that can only be used with secure module parameters. Internally, Bicep translates this expression to the same kind of Key Vault reference you learned about earlier.
+
+## Add a key vault reference to a parameter file
+
+```json
+    "sqlServerAdministratorLogin": {
+      "reference": {
+        "keyVault": {
+          "id": "YOUR-KEY-VAULT-RESOURCE-ID"
+        },
+        "secretName": "sqlServerAdministratorLogin"
+      }
+    },
+    "sqlServerAdministratorPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "YOUR-KEY-VAULT-RESOURCE-ID"
+        },
+        "secretName": "sqlServerAdministratorPassword"
+      }
+    }
+```
