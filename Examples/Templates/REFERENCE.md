@@ -34,10 +34,12 @@ param environmentName string = 'dev'
 param location string = resourceGroup().location
 ```
 ## Parameter types :
->**string**, which lets you enter arbitrary text.
->**int**, which lets you enter a number.
->**bool**, which represents a Boolean (true or false) value.
->**object** and __array__, which represent structured data and lists.
+```
+**string**, which lets you enter arbitrary text.
+**int**, which lets you enter a number.
+**bool**, which represents a Boolean (true or false) value.
+**object** and __array__, which represent structured data and lists.
+```
 
 # Objects
 ```bicep
