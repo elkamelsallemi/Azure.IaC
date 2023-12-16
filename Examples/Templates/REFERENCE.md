@@ -12,6 +12,8 @@
 ## Deploy template
 >az deployment group create --template-file main.bicep
 
+# Use parameter files at deployment time
+>az deployment group create --template-file main.bicep --parameters main.parameters.json
 
 # Bicep Refrences
 ## Declare a parameter : 
@@ -53,51 +55,43 @@
   Team: 'Human Resources'
 }/>
 
-<resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
-  name: appServicePlanName
-  location: location
-  tags: resourceTags
-  sku: {
-    name: 'S1'
-  }
-}/>
+>>Whenever you define a resource in your Bicep file, you can reuse it wherever you define the tags property:
 
->Whenever you define a resource in your Bicep file, you can reuse it wherever you define the tags property:
-<resource appServiceApp 'Microsoft.Web/sites@' = {
-  name: appServiceAppName
-  location: location
-  tags: resourceTags
-  kind: 'app'
-  properties: {
-    serverFarmId: appServicePlan.id
-  }
-}/>
+>resource appServiceApp 'Microsoft.Web/sites@' = {
+>  name: appServiceAppName
+>  location: location
+>  tags: resourceTags
+>  kind: 'app'
+>  properties: {
+>    serverFarmId: appServicePlan.id
+>  }
+>}
 
 ## Arrays
 >Let's consider an example. Azure Cosmos DB lets you create database accounts that span multiple regions, and it automatically handles the data replication for you. When you deploy a new database account, you need to specify the list of Azure regions that you want the account to be deployed into. Often, you'll need to have a different list of locations for different environments. For example, to save money in your test environment, you might use only one or two locations. But in your production environment, you might use several locations.
 
 >You can create an array parameter that specifies a list of locations:
 
-<param cosmosDBAccountLocations array = [
-  {
-    locationName: 'australiaeast'
-  }
-  {
-    locationName: 'southcentralus'
-  }
-  {
-    locationName: 'westeurope'
-  }
-]/>
+>param cosmosDBAccountLocations array = [
+>  {
+>    locationName: 'australiaeast'
+>  }
+>  {
+>    locationName: 'southcentralus'
+>  }
+>  {
+>    locationName: 'westeurope'
+>  }
+>]
 
 >When you declare your Azure Cosmos DB resource, you can now reference the array parameter:
-<resource account 'Microsoft.DocumentDB/databaseAccounts@2022-08-15' = {
-  name: accountName
-  location: location
-  properties: {
-    locations: cosmosDBAccountLocations
-  }
-}/>
+>resource account 'Microsoft.DocumentDB/databaseAccounts@2022-08-15' = {
+>  name: accountName
+>  location: location
+>  properties: {
+>   locations: cosmosDBAccountLocations
+>  }
+>}
 
 ## Specify a list of allowed values
 
@@ -118,6 +112,16 @@ param appServicePlanSkuName string*
 
 ## Add descriptions to parameters
 
->@description('The locations into which this Cosmos DB account should be configured. This parameter needs to be a list of objects, /
->each of which has a locationName property.')
->param cosmosDBAccountLocations array
+>>@description('The locations into which this Cosmos DB account should be configured. This parameter needs to be a list of objects,each of which has a locationName property.') 
+>>param cosmosDBAccountLocations array
+
+>resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
+>  name: keyVaultName
+>}
+>
+>module applicationModule 'application.bicep' = {
+>  name: 'application-module'
+>  params: {
+>    apiKey: keyVault.getSecret('ApiKey')
+>  }
+>}
