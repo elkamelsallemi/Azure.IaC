@@ -3,41 +3,50 @@
 ## Sign in to Azure
 ```bash
 Sign in to Azure
+```
 
 ## Set the default subscription
 ```bash
 az account set --subscription {your subscription ID}
-
+```
 ## Set the default resource group
 ```bash
 az configure --defaults group=[sandbox resource group name]
-
+```
 ## Deploy template
->az deployment group create --template-file main.bicep
-
+```bash
+az deployment group create --template-file main.bicep
+```
 # Use parameter files at deployment time
->az deployment group create --template-file main.bicep --parameters main.parameters.json
+```bash
+az deployment group create --template-file main.bicep --parameters main.parameters.json
+```
 
 # Bicep Refrences
 ## Declare a parameter : 
-<param environmentName string/>
-<param environmentName string = 'dev'/>
+```bicep
+param environmentName string
+param environmentName string = 'dev'
+```
 
 >Here's an example of a string parameter named location with a default value set to the location of the current resource group
-<param location string = resourceGroup().location/>
-
+```bicep
+param location string = resourceGroup().location
+```
 ## Parameter types :
-**string**, which lets you enter arbitrary text.
-**int**, which lets you enter a number.
-**bool**, which represents a Boolean (true or false) value.
-**object** and __array__, which represent structured data and lists.
+>**string**, which lets you enter arbitrary text.
+>**int**, which lets you enter a number.
+>**bool**, which represents a Boolean (true or false) value.
+>**object** and __array__, which represent structured data and lists.
 
 # Objects
-<param appServicePlanSku object = {
+```bicep
+param appServicePlanSku object = {
   name: 'F1'
   tier: 'Free'
   capacity: 1
-}/>
+}
+```
 
 >When you reference the parameter in the template, you can select the individual properties of the object by using a dot followed by the name of the property, like in this example:
 
