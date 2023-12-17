@@ -209,3 +209,218 @@ Notice that in this Bicep file, the Key Vault resource is referenced by using th
       }
     }
 ```
+## Use basic conditions
+
+When you deploy a resource in Bicep, you can provide the if keyword followed by a condition. The condition should resolve to a Boolean (true or false) value. If the value is true, the resource is deployed. If the value is false, the resource is not deployed.
+
+It's common to create conditions based on the values of parameters that you provide. For example, the following code deploys a storage account only when the deployStorageAccount parameter is set to true:
+
+```bicep
+param deployStorageAccount bool
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = if (deployStorageAccount) {
+  name: 'teddybearstorage'
+  location: resourceGroup().location
+  kind: 'StorageV2'
+  // ...
+}
+```
+Notice that the if keyword is on the same line as the resource definition.
+
+## Use expressions as conditions
+The preceding example was quite basic. The deployStorageAccount parameter was of type bool, so it's clear whether it has a value of true or false.
+
+In Bicep, conditions can also include expressions. In the following example, the code deploys a SQL auditing resource only when the environmentName parameter value is equal to Production:
+
+```bicep
+@allowed([
+  'Development'
+  'Production'
+])
+param environmentName string
+
+resource auditingSettings 'Microsoft.Sql/servers/auditingSettings@2021-11-01-preview' = if (environmentName == 'Production') {
+  parent: server
+  name: 'default'
+  properties: {
+  }
+}
+```
+```bicep
+@allowed([
+  'Development'
+  'Production'
+])
+param environmentName string
+
+var auditingEnabled = environmentName == 'Production'
+
+resource auditingSettings 'Microsoft.Sql/servers/auditingSettings@2021-11-01-preview' = if (auditingEnabled) {
+  parent: server
+  name: 'default'
+  properties: {
+  }
+}
+```
+## Depend on conditionally deployed resources
+Notice that this Bicep code uses the question mark (?) operator within the storageEndpoint and storageAccountAccessKey properties. When the Bicep code is deployed to a production environment, the expressions are evaluated to the details from the storage account. When the code is deployed to a non-production environment, the expressions evaluate to an empty string ('').
+
+You might wonder why this code is necessary, because auditingSettings and auditStorageAccount both have the same condition, and so you'll never need to deploy a SQL auditing settings resource without a storage account. Although this is true, Azure Resource Manager evaluates the property expressions before the conditionals on the resources. That means that if the Bicep code doesn't have this expression, the deployment will fail with a ResourceNotFound error.
+
+```bicep
+@allowed([
+  'Development'
+  'Production'
+])
+param environmentName string
+param location string = resourceGroup().location
+param auditStorageAccountName string = 'bearaudit${uniqueString(resourceGroup().id)}'
+
+var auditingEnabled = environmentName == 'Production'
+var storageAccountSkuName = 'Standard_LRS'
+
+resource auditStorageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = if (auditingEnabled) {
+  name: auditStorageAccountName
+  location: location
+  sku: {
+    name: storageAccountSkuName
+  }
+  kind: 'StorageV2'
+}
+
+resource auditingSettings 'Microsoft.Sql/servers/auditingSettings@2021-11-01-preview' = if (auditingEnabled) {
+  parent: server
+  name: 'default'
+  properties: {
+    state: 'Enabled'
+    storageEndpoint: environmentName == 'Production' ? auditStorageAccount.properties.primaryEndpoints.blob : ''
+    storageAccountAccessKey: environmentName == 'Production' ? listKeys(auditStorageAccount.id, auditStorageAccount.apiVersion).keys[0].value : ''
+  }
+}
+```
+## Use copy loops
+
+When you define a resource or a module in a Bicep template, you can use the for keyword to create a loop. Place the for keyword in the resource declaration, then specify how you want Bicep to identify each item in the loop. Typically, you loop over an array of objects to create multiple instances of a resource. The following example deploys multiple storage accounts, and their names are specified as parameter values:
+
+```bicep
+param storageAccountNames array = [
+  'saauditus'
+  'saauditeurope'
+  'saauditapac'
+]
+
+resource storageAccountResources 'Microsoft.Storage/storageAccounts@2021-09-01' = [for storageAccountName in storageAccountNames: {
+  name: storageAccountName
+  location: resourceGroup().location
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+}]
+```
+
+In this example, the loop iterates through each item in the storageAccountNames array. Each time Bicep goes through the loop, it puts the current value into a special variable called storageAccountName, and it's used as the value of the name property. Notice that Bicep requires you put an opening bracket ([) character before the for keyword, and a closing bracket (]) character after the resource definition.
+
+If you deployed this Bicep file, you'd see that three storage accounts were created, with their names specified by the corresponding items in the storageAccountNames array.
+
+## Loop based on a count
+You might sometimes need to loop to create a specific number of resources, and not use an array as the source. Bicep provides the range() function, which creates an array of numbers. For example, if you need to create four storage accounts called sa1 through sa4, you could use a resource definition like this:
+
+```bicep
+resource storageAccountResources 'Microsoft.Storage/storageAccounts@2021-09-01' = [for i in range(1,4): {
+  name: 'sa${i}'
+  location: resourceGroup().location
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+}]
+```
+When you use the range() function, you specify its start value and the number of values you want to create. For example, if you want to create storage accounts with the names sa0, sa1, and sa2, you'd use the function range(0,3).
+## Access the iteration index
+
+With Bicep, you can iterate through arrays and retrieve the index of the current element in the array. For example, let's say you want to create a logical server in each location that's specified by an array, and you want the names of the servers to be sqlserver-1, sqlserver-2, and so on. You could achieve this by using the following Bicep code:
+
+```bicep
+param locations array = [
+  'westeurope'
+  'eastus2'
+  'eastasia'
+]
+
+resource sqlServers 'Microsoft.Sql/servers@2021-11-01-preview' = [for (location, i) in locations: {
+  name: 'sqlserver-${i+1}'
+  location: location
+  properties: {
+    administratorLogin: administratorLogin
+    administratorLoginPassword: administratorLoginPassword
+  }
+}]
+
+```
+Notice that the name property includes the expression i+1. The first value of the i index variable is zero, so you need to add +1 to it if you want your server names to start with 1.
+
+
+## Filter items with loops
+In some situations, you might want to deploy resources by using copy loops combined with conditions. You can do this by combining the if and for keywords.
+
+In the following example, the code uses an array parameter to define a set of logical servers. A condition is used with the copy loop to deploy the servers only when the environmentName property of the loop object equals Production:
+
+```bicep
+param sqlServerDetails array = [
+  {
+    name: 'sqlserver-we'
+    location: 'westeurope'
+    environmentName: 'Production'
+  }
+  {
+    name: 'sqlserver-eus2'
+    location: 'eastus2'
+    environmentName: 'Development'
+  }
+  {
+    name: 'sqlserver-eas'
+    location: 'eastasia'
+    environmentName: 'Production'
+  }
+]
+
+resource sqlServers 'Microsoft.Sql/servers@2021-11-01-preview' = [for sqlServer in sqlServerDetails: if (sqlServer.environmentName == 'Production') {
+  name: sqlServer.name
+  location: sqlServer.location
+  properties: {
+    administratorLogin: administratorLogin
+    administratorLoginPassword: administratorLoginPassword
+  }
+  tags: {
+    environment: sqlServer.environmentName
+  }
+}]
+```
+If you deployed the preceding example, you'd see two logical servers, sqlserver-we and sqlserver-eas, but not sqlserver-eus2, because that object's environmentName property doesn't match Production.
+
+## Control loop execution
+By default, Azure Resource Manager creates resources from loops in parallel and in a non-deterministic order. When you created loops in the previous exercises, both of the Azure SQL logical servers were created at the same time. This helps to reduce the overall deployment time, because all of the resources within the loop are deployed at once.
+
+In some cases, however, you might need to deploy resources in loops sequentially instead of in parallel, or deploy small batches of changes together in parallel. For example, if you have lots of Azure App Service apps in your production environment, you might want to deploy changes to only a small number at a time to prevent the updates from restarting all of them at the same time.
+
+You can control the way your copy loops run in Bicep by using the @batchSize decorator. Put the decorator on the resource or module declaration with the for keyword.
+
+Let's look at an example Bicep definition for a set of App Service applications without the @batchSize decorator:
+
+```bicep
+resource appServiceApp 'Microsoft.Web/sites@2021-03-01' = [for i in range(1,3): {
+  name: 'app${i}'
+  // ...
+}]
+```
+![Screenshot](./img/1.png)
+
+
+
+
+
+
+
+
+
