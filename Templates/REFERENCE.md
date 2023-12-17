@@ -416,11 +416,181 @@ resource appServiceApp 'Microsoft.Web/sites@2021-03-01' = [for i in range(1,3): 
 ```
 ![Screenshot](./img/1.png)
 
+```bicep
+@batchSize(2)
+resource appServiceApp 'Microsoft.Web/sites@2021-03-01' = [for i in range(1,3): {
+  name: 'app${i}'
+  // ...
+}]
+```
+![Screenshot](./img/2.png)
+
+```bicep
+@batchSize(1)
+resource appServiceApp 'Microsoft.Web/sites@2021-03-01' = [for i in range(1,3): {
+  name: 'app${i}'
+  // ...
+}]
+```
+![Screenshot](./img/3.png)
+
+## Use loops with resource properties
+You can use loops to help set resource properties. For example, when you deploy a virtual network, you need to specify its subnets. A subnet has to have two pieces of important information: a name and an address prefix. You can use a parameter with an array of objects so that you can specify different subnets for each environment:
+```bicep
+param subnetNames array = [
+  'api'
+  'worker'
+]
+
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2021-08-01' = {
+  name: 'teddybear'
+  location: resourceGroup().location
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.0.0.0/16'
+      ]
+    }
+    subnets: [for (subnetName, i) in subnetNames: {
+      name: subnetName
+      properties: {
+        addressPrefix: '10.0.${i}.0/24'
+      }
+    }]
+  }
+}
+```
+
+## Nested loops
+
+Some scenarios require you to use a loop inside another loop, or a nested loop. You can create nested loops by using Bicep.
+
+For your teddy bear toy company, you need to deploy virtual networks in every country/region where the toy will be launched. Every virtual network needs a different address space and two subnets. Let's start by deploying the virtual networks in a loop:
+
+```bicep
+param locations array = [
+  'westeurope'
+  'eastus2'
+  'eastasia'
+]
+
+var subnetCount = 2
+
+resource virtualNetworks 'Microsoft.Network/virtualNetworks@2021-08-01' = [for (location, i) in locations : {
+  name: 'vnet-${location}'
+  location: location
+  properties: {
+    addressSpace:{
+      addressPrefixes:[
+        '10.${i}.0.0/16'
+      ]
+    }
+  }
+}]
+```
+This loop deploys the virtual networks for each location, and it sets the addressPrefix for the virtual network by using the loop index to ensure each virtual network gets a different address prefix.
+
+You can use a nested loop to deploy the subnets within each virtual network:
+
+```bicep
+resource virtualNetworks 'Microsoft.Network/virtualNetworks@2021-08-01' = [for (location, i) in locations : {
+  name: 'vnet-${location}'
+  location: location
+  properties: {
+    addressSpace:{
+      addressPrefixes:[
+        '10.${i}.0.0/16'
+      ]
+    }
+    subnets: [for j in range(1, subnetCount): {
+      name: 'subnet-${j}'
+      properties: {
+        addressPrefix: '10.${i}.${j}.0/24'
+      }
+    }]
+  }
+}]
+
+```
+
+The nested loop uses the range() function to create two subnets.
+
+When you deploy the template, you get the following virtual networks and subnets:
+
+## Variable loops
+
+By using variable loops, you can create an array, which you can then use through your Bicep file. As you do with other loops, you use the for keyword to create a variable loop:
+
+```bicep
+var items = [for i in range(1, 5): 'item${i}']
+```
+
+The preceding example creates an array that contains the values item1, item2, item3, item4, and item5.
+
+You'd ordinarily use variable loops to create more complex objects that you could then use within a resource declaration. Here's how to use variable loops to create a subnets property:
+
+```bicep
+param addressPrefix string = '10.10.0.0/16'
+param subnets array = [
+  {
+    name: 'frontend'
+    ipAddressRange: '10.10.0.0/24'
+  }
+  {
+    name: 'backend'
+    ipAddressRange: '10.10.1.0/24'
+  }
+]
+
+var subnetsProperty = [for subnet in subnets: {
+  name: subnet.name
+  properties: {
+    addressPrefix: subnet.ipAddressRange
+  }
+}]
+
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2021-08-01' = {
+  name: 'teddybear'
+  location: resourceGroup().location
+  properties:{
+    addressSpace:{
+      addressPrefixes:[
+        addressPrefix
+      ]
+    }
+    subnets: subnetsProperty
+  }
+}
+```
+This example illustrates an effective use for variable loops: turning a parameter that has simple, easy-to-understand values into a more complex object that corresponds to the Azure resource's required definition. You can use variable loops to enable parameters to specify only the key information that will change for each item in the list. You can then use Bicep expressions or default values to set other required properties for the resource.
 
 
+## Output loops
 
+You can use Bicep outputs to provide information from your deployments back to the user or tool that started the deployment. Output loops give you the flexibility and power of loops within your outputs.
 
+As you do with other loops, use the for keyword to specify an output loop:
 
+```bicep
+var items = [
+  'item1'
+  'item2'
+  'item3'
+  'item4'
+  'item5'
+]
+
+output outputItems array = [for i in range(0, length(items)): items[i]]
+
+```
+```bicep
+output storageEndpoints array = [for i in range(0, length(locations)): {
+  name: storageAccounts[i].name
+  location: storageAccounts[i].location
+  blobEndpoint: storageAccounts[i].properties.primaryEndpoints.blob
+  fileEndpoint: storageAccounts[i].properties.primaryEndpoints.file
+}]
+```
 
 
 
