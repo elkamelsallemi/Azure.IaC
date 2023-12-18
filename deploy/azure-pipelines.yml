@@ -13,7 +13,7 @@ jobs:
   
     - task: AzureResourceManagerTemplateDeployment@3
       inputs:
-        connectedServiceName: $(ServiceConnectionName)
+        connectedServiceName: $(ServiceConnectionname)
         deploymentName: $(Build.BuildNumber)
         location: $(deploymentDefaultLocation)
         resourceGroupName: $(ResourceGroupName)
