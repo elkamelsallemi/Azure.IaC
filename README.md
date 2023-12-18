@@ -5,6 +5,12 @@ Welcome to my public Azure Infrastructure as Code (IaC) Learning Project! This p
 1. /templates: Contains Bicep templates for various Azure resources and configurations.
 2. /deploy : Contains Bicep template for Azure Resource deployment (App-Service/App-Service-Plan/Storage-Account) using Azure Pipelines.
 
+## Getting Started:
+1. Clone the repository ```git clone https://github.com/elkamelsallemi/Azure.IaC.git```.
+2. Explore the /templates directory for sample Bicep templates.
+3. Refer to the /templates/README.md docs directory for comprehensive guides and documentation.
+4. Check the /deploy directory for predefined Azure Pipelines configurations to deploy your infrastructure.
+
 ## Azure pipelines deployment Status :
 [![Build Status](https://dev.azure.com/sallemi-elkamel/CodeHub/_apis/build/status%2FCodeHub.Azure.IaC?branchName=main)](https://dev.azure.com/sallemi-elkamel/CodeHub/_build/latest?definitionId=19&branchName=main)
 
