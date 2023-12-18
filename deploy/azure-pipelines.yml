@@ -1,0 +1,23 @@
+trigger: none
+
+pool:
+  name: 'Default'
+
+variables:
+- name: deploymentDefaultLocation
+  value: northeurope
+
+jobs:
+  - job:
+    steps:
+  
+    - task: AzureResourceManagerTemplateDeployment@3
+      inputs:
+        connectedServiceName: $(ServiceConnectionName)
+        deploymentName: $(Build.BuildNumber)
+        location: $(deploymentDefaultLocation)
+        resourceGroupName: $(ResourceGroupName)
+        csmFile: deploy/main.bicep
+        overrideParameters: >
+          -environmentType $(EnvironmentType)
+          -deployTestManualsStorageAccount $(DeployTestManualsStorageAccount)
