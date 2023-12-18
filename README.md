@@ -65,3 +65,73 @@ After you create a variable, you'll use a specific syntax to refer to the variab
 ```
 
 The pipeline definition file format includes a special **$(VariableName)** syntax. You can refer to any variable by using this approach, whether it's secret or not.
+
+## Triggers in Azure pipelines
+### Branch triggers :
+- A continuous integration trigger or CI trigger. When you use a branch trigger, every time you make a change to a specific branch, the pipeline runs. If you commit and push a change to a different branch, the pipeline isn't triggered and it doesn't run.
+
+```yml
+trigger:
+- main
+```
+
+### Trigger when multiple branches change : 
+
+```yml
+trigger:
+  branches:
+    include:
+    - main
+    - release/*
+```
+```yml
+trigger:
+  branches:
+    include:
+    - '*'
+    exclude:
+    - feature/*
+```
+### Path filters : 
+
+```yml
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    exclude:
+    - docs
+    include:
+    - deploy
+```
+### Schedule trigger
+```yml
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily environment restore
+  branches:
+    include:
+    - main
+```
+### Multiple triggers : 
+```yml
+trigger:
+- main
+
+schedules:
+- cron: "0 0 * * *"
+  displayName: Deploy test environment
+  branches:
+    include:
+    - main
+```
+### Concurrency control
+```yml
+trigger:
+  batch: true
+  branches:
+    include:
+    - main
+```
+When your trigger fires, Azure Pipelines ensures that it waits for any active pipeline run to complete. Then, it starts a new run with all of the changes that have accumulated since the last run.
