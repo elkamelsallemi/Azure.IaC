@@ -28,7 +28,7 @@ var environmentConfigurationMap = {
         capacity: 1
       }
     }
-    toyManualsStorageAccount: {
+    testManualsStorageAccount: {
       sku: {
         name: 'Standard_LRS'
       }
